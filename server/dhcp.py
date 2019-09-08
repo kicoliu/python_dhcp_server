@@ -92,11 +92,12 @@ class WriteBootProtocolPacket(object):
     def options(self):
         done = list()
         # fulfill wishes
-        for option in self.parameter_order:
-            if option < len(options) and hasattr(self, options[option][0]) or hasattr(self, 'option_{}'.format(option)):
-                # this may break with the specification because we must try to fulfill the wishes
-                if option not in done:
-                    done.append(option)
+        if self.parameter_order is not None:
+            for option in self.parameter_order:
+                if option < len(options) and hasattr(self, options[option][0]) or hasattr(self, 'option_{}'.format(option)):
+                    # this may break with the specification because we must try to fulfill the wishes
+                    if option not in done:
+                        done.append(option)
         # add my stuff
         for option, o in enumerate(options):
             if o[0] and hasattr(self, o[0]):
@@ -191,7 +192,10 @@ class Transaction(object):
         offer.bootp_flags = discovery.bootp_flags
         offer.dhcp_message_type = 'DHCPOFFER'
         offer.client_identifier = mac
-        self.server.broadcast(offer)
+        if offer.relay_agent_ip_address == '0.0.0.0':
+            self.server.broadcast(offer)
+        else:
+            self.server.unicast(offer, offer.relay_agent_ip_address)
     
     def received_dhcp_request(self, request):
         if self.is_done(): return 
@@ -409,7 +413,8 @@ class DHCPServer(object):
         self.configuration = configuration
         self.socket = socket(type = SOCK_DGRAM)
         self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.socket.bind(('', 67))
+        # self.socket.bind(('', 67))
+        self.socket.bind((self.configuration.listen_address, 67))
         self.delay_worker = DelayWorker()
         self.closed = False
         self.transactions = collections.defaultdict(lambda: Transaction(self)) # id: transaction
@@ -513,6 +518,11 @@ class DHCPServer(object):
                 broadcast_socket.sendto(data, (addr, 68))
             finally:
                 broadcast_socket.close()
+
+    def unicast(self, packet, addr):
+        self.configuration.debug('unicasting:\n {}'.format(str(packet).replace('\n', '\n\t')))
+        data = packet.to_bytes()
+        self.socket.sendto(data,(addr, 68))
 
     def run(self):
         while not self.closed:

@@ -132,6 +132,9 @@ options = [
     ('streettalk_server', inet_ntoaX, inet_atonX),
     ('stda_server', inet_ntoaX, inet_atonX),
     ]
+for i in range(77,150):
+    options.append(('', None, None))
+options.append(('call_home_server', inet_ntoa, inet_aton))
 
 assert options[18][0] == 'extensions_path', options[18][0]
 assert options[25][0] == 'path_mtu_plateau_table', options[25][0]
@@ -139,6 +142,7 @@ assert options[33][0] == 'static_route', options[33][0]
 assert options[50][0] == 'requested_ip_address', options[50][0]
 assert options[64][0] == 'network_information_service_domain', options[64][0]
 assert options[76][0] == 'stda_server', options[76][0]
+assert options[150][0] == 'call_home_server', options[150][0]
 
 
 class ReadBootProtocolPacket(object):
@@ -215,6 +219,7 @@ client MAC address: {self.client_mac_address}
 client IP address: {self.client_ip_address}
 your IP address: {self.your_ip_address}
 next server IP address: {self.next_server_ip_address}
+relay IP address: {self.relay_agent_ip_address}
 {self.formatted_named_options}
 """.format(self = self)
 
