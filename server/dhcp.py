@@ -231,6 +231,7 @@ class DHCPServerConfiguration(object):
     network = '192.168.173.0'
     broadcast_address = '255.255.255.255'
     subnet_mask = '255.255.255.0'
+    ip_pool_by_relay = []
     router = None # list of ips
     # 1 day is 86400
     ip_address_lease_time = 300 # seconds
@@ -256,14 +257,28 @@ class DHCPServerConfiguration(object):
                 #self.non_local_source_routing_enabled = True
                 #self.perform_mask_discovery = True
 
-    def all_ip_addresses(self):
-        ips = ip_addresses(self.network, self.subnet_mask)
-        for i in range(5):
+    def all_ip_addresses(self, relay_agent_ip_address = '0.0.0.0'):
+        network = self.network
+        subnet_mask = self.subnet_mask
+        for subnet in self.ip_pool_by_relay:
+            if subnet['relay_ip'] == relay_agent_ip_address:
+                network = subnet['network']
+                subnet_mask = subnet['subnet_mask']
+                break
+        ips = ip_addresses(network, subnet_mask)
+        for i in range(1):
             next(ips)
         return ips
 
-    def network_filter(self):
-        return NETWORK(self.network, self.subnet_mask)
+    def network_filter(self, relay_agent_ip_address = '0.0.0.0'):
+        network = self.network
+        subnet_mask = self.subnet_mask
+        for subnet in self.ip_pool_by_relay:
+            if subnet['relay_ip'] == relay_agent_ip_address:
+                network = subnet['network']
+                subnet_mask = subnet['subnet_mask']
+                break
+        return NETWORK(network, subnet_mask)
 
 def ip_addresses(network, subnet_mask):
     import socket, struct
@@ -484,8 +499,8 @@ class DHCPServer(object):
         if ip is None:
             # 3. choose new, free ip address
             chosen = False
-            network_hosts = self.hosts.get(ip = self.configuration.network_filter())
-            for ip in self.configuration.all_ip_addresses():
+            network_hosts = self.hosts.get(ip = self.configuration.network_filter(packet.relay_agent_ip_address))
+            for ip in self.configuration.all_ip_addresses(packet.relay_agent_ip_address):
                 if not any(host.ip == ip for host in network_hosts):
                     chosen = True
                     break
